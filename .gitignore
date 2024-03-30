@@ -38,3 +38,6 @@
 extracted_*/
 
 .DS_Store
+
+# bin dir
+bin

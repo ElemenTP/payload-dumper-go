@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"runtime"
@@ -27,7 +26,7 @@ func extractPayloadBin(filename string) string {
 				log.Fatalf("Failed to read zipped file: %s\n", file.Name)
 			}
 
-			tempfile, err := ioutil.TempFile(os.TempDir(), "payload_*.bin")
+			tempfile, err := os.CreateTemp(os.TempDir(), "payload_*.bin")
 			if err != nil {
 				log.Fatalf("Failed to create a temp file located at %s\n", tempfile.Name())
 			}

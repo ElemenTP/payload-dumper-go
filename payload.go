@@ -13,12 +13,12 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/ElemenTP/payload-dumper-go/chromeos_update_engine"
 	humanize "github.com/dustin/go-humanize"
-	"github.com/golang/protobuf/proto"
-	xz "github.com/spencercw/go-xz"
-	"github.com/ssut/payload-dumper-go/chromeos_update_engine"
+	xz "github.com/ulikunitz/xz"
 	"github.com/vbauerster/mpb/v5"
 	"github.com/vbauerster/mpb/v5/decor"
+	"google.golang.org/protobuf/proto"
 )
 
 type request struct {
@@ -65,7 +65,7 @@ func (ph *payloadHeader) ReadFromPayload() error {
 		return err
 	}
 	if string(buf) != payloadHeaderMagic {
-		return fmt.Errorf("Invalid payload magic: %s", buf)
+		return fmt.Errorf("invalid payload magic: %s", buf)
 	}
 
 	// Read Version
@@ -77,7 +77,7 @@ func (ph *payloadHeader) ReadFromPayload() error {
 	fmt.Printf("Payload Version: %d\n", ph.Version)
 
 	if ph.Version != brilloMajorPayloadVersion {
-		return fmt.Errorf("Unsupported payload version: %d", ph.Version)
+		return fmt.Errorf("unsupported payload version: %d", ph.Version)
 	}
 
 	// Read Manifest Len
@@ -102,8 +102,8 @@ func (ph *payloadHeader) ReadFromPayload() error {
 }
 
 // NewPayload creates a new Payload struct
-func NewPayload(filename string) Payload {
-	payload := Payload{
+func NewPayload(filename string) *Payload {
+	payload := &Payload{
 		Filename:    filename,
 		concurrency: 4,
 	}
@@ -235,7 +235,7 @@ func (p *Payload) Extract(partition *chromeos_update_engine.PartitionUpdate, out
 
 	for _, operation := range partition.Operations {
 		if len(operation.DstExtents) == 0 {
-			return fmt.Errorf("Invalid operation.DstExtents for the partition %s", name)
+			return fmt.Errorf("invalid operation.DstExtents for the partition %s", name)
 		}
 		bar.Increment()
 
@@ -259,22 +259,21 @@ func (p *Payload) Extract(partition *chromeos_update_engine.PartitionUpdate, out
 			}
 
 			if int64(n) != expectedUncompressedBlockSize {
-				return fmt.Errorf("Verify failed (Unexpected bytes written): %s (%d != %d)", name, n, expectedUncompressedBlockSize)
+				return fmt.Errorf("verify failed (Unexpected bytes written): %s (%d != %d)", name, n, expectedUncompressedBlockSize)
 			}
-			break
 
 		case chromeos_update_engine.InstallOperation_REPLACE_XZ:
-			reader := xz.NewDecompressionReader(teeReader)
-			n, err := io.Copy(out, &reader)
+			reader, err := xz.NewReader(teeReader)
 			if err != nil {
 				return err
 			}
-			reader.Close()
-			if n != expectedUncompressedBlockSize {
-				return fmt.Errorf("Verify failed (Unexpected bytes written): %s (%d != %d)", name, n, expectedUncompressedBlockSize)
+			n, err := io.Copy(out, reader)
+			if err != nil {
+				return err
 			}
-
-			break
+			if n != expectedUncompressedBlockSize {
+				return fmt.Errorf("verify failed (Unexpected bytes written): %s (%d != %d)", name, n, expectedUncompressedBlockSize)
+			}
 
 		case chromeos_update_engine.InstallOperation_REPLACE_BZ:
 			reader := bzip2.NewReader(teeReader)
@@ -283,9 +282,8 @@ func (p *Payload) Extract(partition *chromeos_update_engine.PartitionUpdate, out
 				return err
 			}
 			if n != expectedUncompressedBlockSize {
-				return fmt.Errorf("Verify failed (Unexpected bytes written): %s (%d != %d)", name, n, expectedUncompressedBlockSize)
+				return fmt.Errorf("verify failed (Unexpected bytes written): %s (%d != %d)", name, n, expectedUncompressedBlockSize)
 			}
-			break
 
 		case chromeos_update_engine.InstallOperation_ZERO:
 			reader := bytes.NewReader(make([]byte, expectedUncompressedBlockSize))
@@ -295,19 +293,18 @@ func (p *Payload) Extract(partition *chromeos_update_engine.PartitionUpdate, out
 			}
 
 			if n != expectedUncompressedBlockSize {
-				return fmt.Errorf("Verify failed (Unexpected bytes written): %s (%d != %d)", name, n, expectedUncompressedBlockSize)
+				return fmt.Errorf("verify failed (Unexpected bytes written): %s (%d != %d)", name, n, expectedUncompressedBlockSize)
 			}
-			break
 
 		default:
-			return fmt.Errorf("Unhandled operation type: %s", operation.GetType().String())
+			return fmt.Errorf("unhandled operation type: %s", operation.GetType().String())
 		}
 
 		// verify hash
 		hash := hex.EncodeToString(bufSha.Sum(nil))
 		expectedHash := hex.EncodeToString(operation.GetDataSha256Hash())
 		if expectedHash != "" && hash != expectedHash {
-			return fmt.Errorf("Verify failed (Checksum mismatch): %s (%s != %s)", name, hash, expectedHash)
+			return fmt.Errorf("verify failed (Checksum mismatch): %s (%s != %s)", name, hash, expectedHash)
 		}
 	}
 
@@ -323,6 +320,7 @@ func (p *Payload) worker() {
 		filepath := fmt.Sprintf("%s/%s", targetDirectory, name)
 		file, err := os.OpenFile(filepath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0755)
 		if err != nil {
+			fmt.Println(err.Error())
 		}
 		if err := p.Extract(partition, file); err != nil {
 			fmt.Println(err.Error())

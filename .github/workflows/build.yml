@@ -10,9 +10,9 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt -y update
-          sudo apt -y install git golang liblzma-dev
+          sudo apt -y install git golang
 
       - uses: actions/checkout@v2
 
       - name: Build
-        run: go build .
+        run: make linux-amd64

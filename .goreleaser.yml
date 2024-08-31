@@ -1,80 +1,30 @@
+version: 2
 checksum:
   name_template: "{{ .ProjectName }}_sha256checksums.txt"
   algorithm: sha256
-env:
-  - CGO_ENABLED=0
 builds:
-  - id: build-windows-386
+  - binary: payload-dumper-go
     goos:
+      - linux
+      - darwin
       - windows
-    goarch:
-      - "386"
-    flags:
-      - -trimpath
-    ldflags:
-      - -w -s -buildid=
-  - id: build-windows-amd64
-    goos:
-      - windows
-    goarch:
-      - amd64
-    flags:
-      - -trimpath
-    ldflags:
-      - -w -s -buildid=
-  - id: build-linux-386
-    goos:
-      - linux
-    goarch:
-      - "386"
-    flags:
-      - -trimpath
-    ldflags:
-      - -w -s -buildid=
-  - id: build-linux-amd64
-    goos:
-      - linux
-    goarch:
-      - amd64
-    flags:
-      - -trimpath
-    ldflags:
-      - -w -s -buildid=
-  - id: build-linux-armv7
-    goos:
-      - linux
     goarch:
       - arm
+      - arm64
+      - "386"
+      - amd64
     goarm:
       - "7"
     flags:
       - -trimpath
     ldflags:
       - -w -s -buildid=
-  - id: build-linux-arm64
-    goos:
-      - linux
-    goarch:
-      - arm64
-    flags:
-      - -trimpath
-    ldflags:
-      - -w -s -buildid=
-  - id: build-darwin-amd64
-    goos:
-      - darwin
-    goarch:
-      - amd64
-    flags:
-      - -trimpath
-    ldflags:
-      - -w -s -buildid=
-  - id: build-darwin-arm64
-    goos:
-      - darwin
-    goarch:
-      - arm64
-    flags:
-      - -trimpath
-    ldflags:
-      - -w -s -buildid=
+    env:
+      - CGO_ENABLED=0
+archives:
+  - format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+release:
+  draft: true

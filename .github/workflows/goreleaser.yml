@@ -7,22 +7,26 @@ on:
 
 jobs:
   goreleaser:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install dependencies
-        run: |
-          sudo apt -y update
-          sudo apt -y install git golang
-
-      - uses: actions/checkout@v2
-
-      - name: Add $GITHUB_WORKSPACE to git safe.directory
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
-      - uses: goreleaser/goreleaser-action@v3
+      - name: Checkout
+        uses: actions/checkout@v4.1.7
         with:
-          version: latest
-          args: release --rm-dist
+          fetch-depth: 0
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v5.0.2
+        with:
+          go-version-file: "go.mod"
+          check-latest: true
+
+      - name: GoReleaser Action
+        uses: goreleaser/goreleaser-action@v5.1.0
+        with:
+          version: "~> v2"
+          args: release --clean
         env:
-          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
